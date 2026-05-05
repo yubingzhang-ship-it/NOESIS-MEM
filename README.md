@@ -1,148 +1,148 @@
-# NOESIS-II 人格一致性记忆系统
+# NOESIS-II Personality-Consistent Memory System
 
-> 具有记忆和自我意识的智能助手系统
-
----
-
-## 1. 系统概述
-
-NOESIS-II 是一个人格一致性记忆系统，设计目标是实现具有记忆和自我意识的智能助手。系统通过多模态输入、分层记忆存储和深层人格等核心能力，提供个性化和一贯性输出。
-
-### 核心原理
-
-系统采用三层记忆架构：
-
-- **工作记忆 (Working Memory)**：短期快速记忆，用于即时处理和暂存记忆内容
-- **长期记忆 (Long-Term Memory)**：结构化长期存储记忆网络
-- **记忆痕迹 (Memory Traces)**：深层记忆痕迹，驱动人格一致性
-
-### 记忆处理流程
-
-1. **输入捕获**：将原始经验输入工作记忆
-2. **冲突消解**：去重和合并相似记忆内容
-3. **整理 (Consolidation)**：使用 LLM 提取记忆线索、情绪和人格数据
-4. **提炼 (Deepening)**：生成深层记忆网络和人格画像
-5. **检索**：多准则检索相关记忆
-6. **遗忘**：软删除和硬删除过期记忆
+> An intelligent assistant system with memory and self-awareness
 
 ---
 
-## 2. 主要特性
+## 1. System Overview
 
-1. **稀疏记忆**：只存储 LLM 不可压缩的信息
-2. **人格一致性**：OCEAN 五维人格模型（开放性、尽责性、外向性、宜人性、神经质）
-3. **记忆网络**：语义关联的记忆结构
-4. **软删除**：active/dormant/forgotten 三级遗忘机制
-5. **事实锚点**：防止生成式回忆时的幻觉
-6. **多 LLM 支持**：支持 Ollama 本地模型和远程 API
+NOESIS-II is a personality-consistent memory system designed to create an intelligent assistant with memory and self-awareness. The system provides personalized and consistent outputs through multimodal inputs, hierarchical memory storage, and deep personality representation.
+
+### Core Principles
+
+The system employs a three-layer memory architecture:
+
+- **Working Memory**: Short-term fast memory for immediate processing and temporary content storage
+- **Long-Term Memory**: Structured long-term memory network storage
+- **Memory Traces**: Deep memory traces that drive personality consistency
+
+### Memory Processing Pipeline
+
+1. **Capture**: Raw experience into working memory
+2. **Conflict Resolution**: Deduplicate and merge similar memory content
+3. **Consolidation**: Extract memory cues, emotions, and personality data using LLM
+4. **Deepening**: Generate deep memory network and personality profile
+5. **Retrieval**: Multi-criteria memory search
+6. **Forgetting**: Soft delete and hard delete expired memories
 
 ---
 
-## 3. 环境要求与安装
+## 2. Key Features
 
-### 环境要求
+1. **Sparse Memory**: Store only LLM-uncompressible information
+2. **Personality Consistency**: OCEAN Five Factor Model (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism)
+3. **Memory Network**: Semantically associated memory structure
+4. **Soft Delete**: Three-level forgetting mechanism (active/dormant/forgotten)
+5. **Factual Anchors**: Prevent hallucinations during generative recall
+6. **Multi-LLM Support**: Support for Ollama local models and remote APIs
+
+---
+
+## 3. Requirements & Installation
+
+### Requirements
 
 - Python 3.10+
 - Windows / Linux / macOS
 
-### 安装步骤
+### Installation
 
 ```bash
-# 进入项目目录
+# Navigate to project directory
 cd noesis_ii
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 ---
 
-## 4. 快速开始
+## 4. Quick Start
 
 ```bash
-# 进入 noesis_ii 目录
+# Navigate to noesis_ii directory
 cd noesis_ii
 
-# 交互模式
+# Interactive mode
 python main.py
 
-# 指定配置文件
+# With custom config
 python main.py --config config/default_config.yaml
 
-# 守护进程模式
+# Daemon mode
 python main.py --mode daemon
 
-# 执行一次记忆巩固
+# Execute single consolidation
 python main.py --mode consolidate
 
-# 执行一次深度分析
+# Execute deep analysis
 python main.py --mode deepen
 ```
 
 ---
 
-## 5. 核心架构
+## 5. Core Architecture
 
 ```
 noesis_ii/
-├── core/                # 核心模块
-│   ├── working_memory.py      # 工作记忆
-│   ├── long_term_memory.py    # 长期记忆
-│   ├── persona_profile.py     # 人格画像
-│   ├── schema.py             # 数据库 Schema
-├── processes/           # 后台处理进程
-│   ├── consolidator.py      # 整理进程
-│   ├── deepener.py         # 深化进程
-│   ├── scheduler.py        # 调度器
-├── retrieval/            # 检索系统
-│   ├── retriever.py       # 统一检索
-├── input/              # 输入模块
-│   ├── input_manager.py   # 输入管理器
-│   ├── book_reader.py    # 书籍阅读器
-│   ├── rss_fetcher.py   # RSS 订阅器
-│   └── web_scraper.py   # 网页抓取器
-├── llm/                # LLM 接口
-├── config_loader.py    # 配置加载器
-└── main.py            # 主入口
+├── core/                # Core modules
+│   ├── working_memory.py      # Working memory
+│   ├── long_term_memory.py    # Long-term memory
+│   ├── persona_profile.py     # Persona profile
+│   ├── schema.py             # Database schema
+├── processes/           # Background processing
+│   ├── consolidator.py      # Consolidator
+│   ├── deepener.py         # Deepener
+│   ├── scheduler.py        # Scheduler
+├── retrieval/            # Retrieval system
+│   ├── retriever.py       # Unified retriever
+├── input/              # Input modules
+│   ├── input_manager.py   # Input manager
+│   ├── book_reader.py    # Book reader
+│   ├── rss_fetcher.py   # RSS fetcher
+│   └── web_scraper.py   # Web scraper
+├── llm/                # LLM interfaces
+├── config_loader.py    # Configuration loader
+└── main.py            # Main entry point
 ```
 
 ---
 
-## 6. 配置说明
+## 6. Configuration
 
-配置文件：`config/default_config.yaml`
+Config file: `config/default_config.yaml`
 
 ```yaml
-# 种子价值观
+# Seed values
 seed_values:
   compassion: 0.8
   courage: 0.6
   integrity: 0.9
   wisdom: 0.7
 
-# 主动阅读
+# Active reading
 active_reading:
   enabled: true
   sources: [books, rss, web]
 
-# 时间节律
+# Circadian rhythm
 circadian_rhythm:
   evening: '22:00'
   morning: '06:00'
 
-# LLM 配置
+# LLM configuration
 llm:
   provider: openai_compatible
   api_base: https://api.longcat.chat/openai/v1
   api_key: ${LONGCAT_API_KEY}
   model: LongCat-Flash-Lite
 
-# 存储配置
+# Storage configuration
 storage:
   db_path: data/noesis.db
   log_path: logs/
 
-# 检索参数
+# Retrieval parameters
 retrieval:
   threshold: 0.5
   top_k: 10
@@ -150,68 +150,68 @@ retrieval:
 
 ---
 
-## 7. 核心模块详解
+## 7. Core Modules
 
-### 工作记忆 (Working Memory)
+### Working Memory
 
-**功能**：短期快速记忆，用于即时处理记忆内容，暂存原始经验
+**Purpose**: Short-term fast memory for immediate content processing
 
-**核心方法**：
-- `capture(content, emotion, conflict_check)` - 捕获经验到工作记忆
-- `get_pending(limit)` - 获取待整理的记忆
-- `mark_consolidated(entry_id)` - 标记已整理
-- `expire_old_entries()` - 过期条目处理
+**Key Methods**:
+- `capture(content, emotion, conflict_check)` - Capture experience to working memory
+- `get_pending(limit)` - Get pending memories to consolidate
+- `mark_consolidated(entry_id)` - Mark as consolidated
+- `expire_old_entries()` - Expire old entries
 
-### 长期记忆 (Long-Term Memory)
+### Long-Term Memory
 
-**功能**：分布式长期存储记忆网络
+**Purpose**: Distributed long-term memory network storage
 
-**核心方法**：
-- `create_node(content, node_type, weight, raw_anchors)` - 创建节点
-- `create_link(source_node_id, target_node_id, strength, relation_type)` - 创建关联
-- `retrieve(query, top_k, threshold)` - 检索
-- `retrieve_with_anchors(query)` - 带事实锚点检索
+**Key Methods**:
+- `create_node(content, node_type, weight, raw_anchors)` - Create memory node
+- `create_link(source_node_id, target_node_id, strength, relation_type)` - Create association
+- `retrieve(query, top_k, threshold)` - Retrieve memory
+- `retrieve_with_anchors(query)` - Retrieve with factual anchors
 
-### 人格画像 (Persona Profile)
+### Persona Profile
 
-**功能**：人格一致性管理，存储记忆痕迹，保持一贯性
+**Purpose**: Personality consistency management, storing memory traces to maintain coherence
 
-**核心方法**：
-- `store_experience(experience, ...)` - 存储经验
-- `retrieve_by_conditions(conditions, top_k)` - 多条件检索
-- `get_current_persona()` - 获取当前人格
-- `create_trace_link(...)` - 创建痕迹关联
+**Key Methods**:
+- `store_experience(experience, ...)` - Store experience
+- `retrieve_by_conditions(conditions, top_k)` - Multi-criteria retrieval
+- `get_current_persona()` - Get current personality
+- `create_trace_link(...)` - Create trace association
 
-### 整理进程 (Consolidator)
+### Consolidator
 
-**功能**：工作记忆 → 长期记忆和记忆痕迹的转化
+**Purpose**: Conversion from working memory to long-term memory and memory traces
 
-**流程**：
-1. 获取待整理的工作记忆
-2. 使用 LLM 分析内容
-3. 提取记忆线索、情绪数据
-4. 提取事实锚点
-5. 生成记忆痕迹
-6. 建立关联
+**Process**:
+1. Get pending working memories
+2. Analyze content using LLM
+3. Extract memory cues and emotion data
+4. Extract factual anchors
+5. Generate memory traces
+6. Create associations
 
 ---
 
-## 8. 使用示例
+## 8. Usage Examples
 
-### Python API 使用
+### Python API
 
 ```python
 from noesis_ii.main import NoesisII
 
-# 初始化
+# Initialize
 system = NoesisII()
 system.initialize('config/default_config.yaml')
 
-# 交互模式
+# Interactive mode
 system.run_interactive()
 ```
 
-### 工作记忆使用
+### Working Memory
 
 ```python
 from noesis_ii.core.working_memory import WorkingMemory
@@ -222,7 +222,7 @@ pending = wm.get_pending()
 wm.mark_consolidated(entry_id)
 ```
 
-### 检索使用
+### Retrieval
 
 ```python
 from noesis_ii.retrieval.retriever import Retriever
@@ -233,16 +233,16 @@ results = retriever.retrieve(query)
 
 ---
 
-## 9. 数据库
+## 9. Database
 
-系统使用 SQLite 数据库，存储以下核心数据：
+The system uses SQLite database to store:
 
-- **working_memory**：工作记忆表
-- **ltm_nodes**：长期记忆节点表
-- **ltm_links**：长期记忆关联表
-- **memory_traces**：记忆痕迹表
+- **working_memory**: Working memory table
+- **ltm_nodes**: Long-term memory nodes table
+- **ltm_links**: Long-term memory links table
+- **memory_traces**: Memory traces table
 
-数据库初始化：
+Database initialization:
 ```python
 from noesis_ii.core.schema import Schema
 schema = Schema('data/noesis.db')
@@ -251,33 +251,33 @@ schema.create_tables()
 
 ---
 
-## 10. 常见问题
+## 10. FAQ
 
-### Q: 首次启动报错找不到配置文件？
+### Q: Config file not found on first startup?
 
-系统会自动创建默认配置。若手动指定路径：
+The system automatically creates default configuration. To specify manually:
 ```bash
 python main.py --config config/default_config.yaml
 ```
 
-### Q: LLM 相关功能报错？
+### Q: LLM-related errors?
 
-检查配置文件中 `llm` 段的 `api_key` 和 `api_base` 是否正确。系统支持任何 OpenAI 兼容 API。
+Check if `api_key` and `api_base` in the `llm` section of config are correct. The system supports any OpenAI-compatible API.
 
-### Q: 数据库报错或数据丢失？
+### Q: Database errors or data loss?
 
-数据库存储在 `data/noesis.db`。Schema 模块支持自动迁移——新增字段或表时会保留已有数据并自动升级结构。
+Database is stored at `data/noesis.db`. The Schema module supports automatic migration - new fields or tables will preserve existing data and upgrade structure automatically.
 
-### Q: 如何重置所有数据？
+### Q: How to reset all data?
 
-删除数据库文件即可：
+Simply delete the database file:
 ```bash
 del noesis_ii\data\noesis.db
 ```
-下次启动时系统会自动重建。
+The system will rebuild automatically on next startup.
 
 ---
 
-## 许可证
+## License
 
-本项目为个人研究项目，仅供学习与研究使用。
+This project is for personal research and educational purposes only.
