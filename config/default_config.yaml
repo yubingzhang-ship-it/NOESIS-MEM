@@ -1,0 +1,39 @@
+active_reading:
+  enabled: true
+  sources:
+  - books
+  - rss
+  - web
+circadian_rhythm:
+  evening: '22:00'
+  morning: 06:00
+consciousness:
+  broadcast_interval: 0.1
+  phi_threshold: 0.6
+forgetting_curve:
+  decay_rate: 0.05
+  initial_strength: 1.0
+llm:
+  provider: "openai_compatible"
+  api_base: "https://api.longcat.chat/openai/v1"
+  api_key: ${LONGCAT_API_KEY}
+  model: "LongCat-Flash-Lite"
+  models:
+    consolidation: "LongCat-Flash-Lite"
+    reading: "LongCat-Flash-Lite"
+    deep_consolidation: "LongCat-Flash-Lite"
+llm_backend:
+  api_key: ${OPENAI_API_KEY}
+  model: gpt-3.5-turbo
+  type: openai
+retrieval:
+  threshold: 0.5
+  top_k: 10
+seed_values:
+  compassion: 0.8
+  courage: 0.6
+  integrity: 0.9
+  wisdom: 0.7
+storage:
+  db_path: data/noesis.db
+  log_path: logs/

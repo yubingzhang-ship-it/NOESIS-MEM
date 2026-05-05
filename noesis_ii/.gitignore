@@ -1,0 +1,44 @@
+# Python项目忽略规则
+
+# 虚拟环境
+venv/
+env/
+
+# 编译产物
+__pycache__/
+*.pyc
+
+# 数据库文件
+*.db
+data/
+
+# 日志文件
+logs/*.log
+
+# 配置文件
+config/*.yaml
+
+# 依赖文件
+# requirements.txt
+
+# IDE文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+
+# 测试文件
+.test_*
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local

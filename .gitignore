@@ -1,0 +1,100 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+
+# 数据库
+*.db
+data/*.db
+data/noesis.db
+noesis_ii/data/*.db
+noesis_ii/data/*.db.bak*
+noesis_ii/data/noesis_backup.db
+
+# 日志
+*.log
+logs/
+
+# 备份
+backups/
+*.bak
+noesis_ii/data/*.bak*
+
+# 测试输出
+*_test_result.txt
+test_output*.txt
+test_report.json
+
+# 模型文件（大文件）
+models/
+*.safetensors
+*.bin
+*.onnx
+*.pth
+*.pt
+*.gguf
+*.ggml
+
+# 大文件数据
+noesis_ii/data/bigfive/
+noesis_ii/data/chinese_bigfive/
+
+# WorkBuddy / CodeBuddy
+.workbuddy/
+.codebuddy/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+$null
+
+# noesis_ii 下的嵌套副本（误生成的）
+noesis_ii/noesis_ii/
+
+# 临时调试脚本（项目根目录下的 check_*.py, debug_*.py, test_*.py, verify_*.py 等）
+/check_*.py
+/debug_*.py
+/fix_*.py
+/reset_*.py
+/clear_*.py
+/find_missing.py
+/stats.py
+/verify_*.py
+/analyze_*.py
+/batch_*.py
+/migrate_*.py
+/noesis_bridge.py
+/rebuild_*.py
+/run_*.py
+/download_model.py
+
+# 临时文件
+/tmp/
+*.txt
+!requirements.txt
+!LICENSE.txt
+!README.txt
+llm_results.json
+console.log*
+
+# 模型文件（大文件，使用 git LFS 或单独管理）
+models/
+*.safetensors
+*.bin
+*.onnx
+*.pth
+*.pt
+
+# 缓存
+*.cache
+.pytest_cache/
+
