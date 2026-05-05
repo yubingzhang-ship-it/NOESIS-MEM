@@ -5,22 +5,22 @@ import math
 from datetime import datetime, timedelta, timezone
 
 # ------------------------------------------------------------------ #
-# 冲突消解操作类型（对标 Mem0 的 ADD/UPDATE/DELETE/NOOP）
+# Conflict Resolution Operation Types (aligned with Mem0's ADD/UPDATE/DELETE/NOOP)
 # ------------------------------------------------------------------ #
-MEMORY_OP_ADD    = "ADD"     # 新内容，正常写入
-MEMORY_OP_UPDATE = "UPDATE"  # 近似内容，补充/合并
-MEMORY_OP_SKIP   = "SKIP"    # 高度重复，跳过
+MEMORY_OP_ADD    = "ADD"     # New content, normal write
+MEMORY_OP_UPDATE = "UPDATE"  # Similar content, supplement/merge
+MEMORY_OP_SKIP   = "SKIP"    # Highly duplicate, skip
 
-# 相似度阈值
-_SIM_SKIP_THRESHOLD   = 0.85   # > 0.85 视为重复，直接 SKIP
-_SIM_UPDATE_THRESHOLD = 0.45   # 0.45-0.85 视为近似，UPDATE 追加
+# Similarity Thresholds
+_SIM_SKIP_THRESHOLD   = 0.85   # > 0.85 considered duplicate, SKIP directly
+_SIM_UPDATE_THRESHOLD = 0.45   # 0.45-0.85 considered similar, UPDATE append
 
 def _tokenize(text: str):
-    """简单分词：中文按字拆分，英文按空格"""
+    """Simple tokenization: Chinese split by character, English split by space"""
     return re.findall(r'[\u4e00-\u9fff]|[a-zA-Z0-9]+', text.lower())
 
 def _tf(tokens: list) -> dict:
-    """计算词频 TF"""
+    """Calculate term frequency (TF)"""
     tf = {}
     for t in tokens:
         tf[t] = tf.get(t, 0) + 1
@@ -28,7 +28,7 @@ def _tf(tokens: list) -> dict:
     return {t: c / total for t, c in tf.items()}
 
 def _cosine_sim(vec1: dict, vec2: dict) -> float:
-    """TF 加权余弦相似度"""
+    """TF-weighted cosine similarity"""
     common = set(vec1) & set(vec2)
     if not common:
         return 0.0
@@ -41,39 +41,45 @@ def _cosine_sim(vec1: dict, vec2: dict) -> float:
 
 
 class WorkingMemory:
+    """
+    Working Memory Module
+    Provides short-term fast memory storage for immediate content processing.
+    Acts as a cache layer before consolidation to long-term memory.
+    """
+
     def __init__(self, db_path):
         self.db_path = db_path
         self.conn = None
-    
+
     def connect(self):
-        """连接到数据库"""
+        """Connect to the SQLite database"""
         dir_name = os.path.dirname(self.db_path)
         if dir_name and not os.path.exists(dir_name):
             os.makedirs(dir_name, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
         return self.conn
-    
+
     def close(self):
-        """关闭数据库连接"""
+        """Close database connection"""
         if self.conn:
             self.conn.close()
 
     # ------------------------------------------------------------------ #
-    # 冲突消解核心
+    # Core Conflict Resolution
     # ------------------------------------------------------------------ #
 
     def _decide_operation(self, content: str) -> tuple:
         """
-        决策操作类型：ADD / UPDATE / SKIP
-        
+        Decide operation type: ADD / UPDATE / SKIP
+
         Returns:
             (op: str, match_id: int|None, sim: float)
         """
         conn = self.connect()
         try:
             cursor = conn.cursor()
-            # 只比对最近 48 小时未整理的记忆（避免对 LTM 产生影响）
+            # Only compare unconsolidated memories from the last 48 hours
             cursor.execute('''
                 SELECT id, content FROM working_memory
                 WHERE is_consolidated = 0
@@ -107,16 +113,16 @@ class WorkingMemory:
 
     def capture(self, content, emotion=None, conflict_check=True):
         """
-        捕获经验到工作记忆（含冲突消解）
-        
+        Capture experience to working memory (with conflict resolution)
+
         Args:
-            content:        经验内容
-            emotion:        情绪标签
-            conflict_check: 是否启用冲突检测（默认开启）
-        
+            content:        Experience content
+            emotion:        Emotion label
+            conflict_check: Enable conflict detection (default: enabled)
+
         Returns:
             (entry_id: int|None, op: str)
-            - entry_id: 写入的记录 ID（SKIP 时为被命中的 ID）
+            - entry_id: Written record ID (SKIP returns the matched ID)
             - op: ADD / UPDATE / SKIP
         """
         if conflict_check:
@@ -125,7 +131,7 @@ class WorkingMemory:
             op, match_id, sim = MEMORY_OP_ADD, None, 0.0
 
         if op == MEMORY_OP_SKIP:
-            print(f"[WorkingMemory] SKIP: 相似度 {sim:.2f} > {_SIM_SKIP_THRESHOLD}，与 id={match_id} 内容重复")
+            print(f"[WorkingMemory] SKIP: similarity {sim:.2f} > {_SIM_SKIP_THRESHOLD}, duplicate with id={match_id}")
             return match_id, op
 
         conn = self.connect()
@@ -133,7 +139,7 @@ class WorkingMemory:
             cursor = conn.cursor()
 
             if op == MEMORY_OP_UPDATE and match_id is not None:
-                # 将新内容追加到已有条目（用 \n---\n 分隔）
+                # Append new content to existing entry (separated by \n---\n)
                 cursor.execute('SELECT content FROM working_memory WHERE id = ?', (match_id,))
                 row = cursor.fetchone()
                 if row:
@@ -143,17 +149,17 @@ class WorkingMemory:
                         (merged, match_id)
                     )
                     conn.commit()
-                    print(f"[WorkingMemory] UPDATE: 相似度 {sim:.2f}，内容追加到 id={match_id}")
+                    print(f"[WorkingMemory] UPDATE: similarity {sim:.2f}, content appended to id={match_id}")
                     return match_id, op
-                # 如果 fetch 失败则降级为 ADD
+                # Fallback to ADD if fetch fails
                 op = MEMORY_OP_ADD
 
-            # ADD：正常插入
+            # ADD: Normal insert
             cursor.execute('''
             INSERT INTO working_memory (content, emotion, timestamp, is_consolidated, ttl)
             VALUES (?, ?, CURRENT_TIMESTAMP, 0, 172800)
             ''', (content, emotion))
-            
+
             conn.commit()
             entry_id = cursor.lastrowid
             if op == MEMORY_OP_ADD:
@@ -161,26 +167,26 @@ class WorkingMemory:
             return entry_id, op
         finally:
             self.close()
-    
+
     # ------------------------------------------------------------------ #
-    # L1 热缓存层（最近 N 轮对话，不参与 Embedding，直接拼接进上下文）
+    # L1 Hot Cache Layer (Recent N conversation rounds, directly concatenated to context)
     # ------------------------------------------------------------------ #
 
     def get_hot_context(self, n: int = 5, format: str = "text") -> str:
         """
-        获取 L1 热缓存：最近 n 条工作记忆（无论是否已整理）。
-        
-        设计意图：
-          - WorkingMemory 全量数据 = L1（热缓存）+ 待整理队列
-          - L1 热缓存直接拼接进生成上下文，不走向量检索
-          - 减少"最近说过 X 但 LTM 还没检索到"的信息丢失
-        
+        Get L1 hot cache: Most recent n working memory entries (regardless of consolidation status).
+
+        Design rationale:
+          - WorkingMemory full data = L1 (hot cache) + pending queue
+          - L1 hot cache directly concatenated to generation context, no vector retrieval
+          - Reduces information loss of "recently said X but LTM hasn't retrieved yet"
+
         Args:
-            n:      返回最近 n 条记录（默认 5）
-            format: "text" 返回拼接字符串，"list" 返回 dict 列表
-        
+            n:      Return most recent n records (default: 5)
+            format: "text" returns concatenated string, "list" returns dict list
+
         Returns:
-            format="text": "[L1-Hot] 内容1\n[L1-Hot] 内容2\n..."
+            format="text": "[L1-Hot] content1\n[L1-Hot] content2\n..."
             format="list":  [{"id": ..., "content": ..., "timestamp": ...}, ...]
         """
         conn = self.connect()
@@ -199,7 +205,7 @@ class WorkingMemory:
         if not rows:
             return "" if format == "text" else []
 
-        # 按时间升序（最新的在后）
+        # Reverse to chronological order (newest at end)
         rows = list(reversed(rows))
 
         if format == "list":
@@ -213,48 +219,49 @@ class WorkingMemory:
         return '\n'.join(parts)
 
     def get_pending(self, limit=10):
-        """获取待整理的工作记忆条目"""
+        """Get pending working memory entries to be consolidated"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
-            
+
             cursor.execute('''
-            SELECT * FROM working_memory 
-            WHERE is_consolidated = 0 
-            ORDER BY timestamp ASC 
+            SELECT * FROM working_memory
+            WHERE is_consolidated = 0
+            ORDER BY timestamp ASC
             LIMIT ?
             ''', (limit,))
-            
+
             entries = [dict(row) for row in cursor.fetchall()]
             return entries
         finally:
             self.close()
-    
+
     def mark_consolidated(self, entry_id):
-        """标记为已整理"""
+        """Mark entry as consolidated"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
-            
+
             cursor.execute('''
-            UPDATE working_memory 
-            SET is_consolidated = 1 
+            UPDATE working_memory
+            SET is_consolidated = 1
             WHERE id = ?
             ''', (entry_id,))
-            
+
             conn.commit()
             affected = cursor.rowcount
             return affected > 0
         finally:
             self.close()
-    
-    def expire_old_entries(self):
-        """软删除过期条目：active → dormant → forgotten
 
-        遗忘三阶段（借鉴 Kimi Claw 的记忆衰减模型）：
-        1. active → dormant: TTL 过期后进入休眠，不参与常规检索但保留数据
-        2. dormant → forgotten: 休眠 7 天后进入遗忘状态
-        3. forgotten: 30 天后可硬删除（当前不自动执行，需手动清理）
+    def expire_old_entries(self):
+        """
+        Soft delete expired entries: active → dormant → forgotten
+
+        Three-stage forgetting (inspired by Kimi Claw's memory decay model):
+        1. active → dormant: Enter dormant state after TTL expires, excluded from normal retrieval but data retained
+        2. dormant → forgotten: Enter forgotten state after 7 days of dormancy
+        3. forgotten: Hard delete available after 30 days (not auto-executed, requires manual cleanup)
         """
         import time as _time
         now = _time.time()
@@ -262,7 +269,7 @@ class WorkingMemory:
         try:
             cursor = conn.cursor()
 
-            # 阶段1：active → dormant（TTL 过期）
+            # Stage 1: active → dormant (TTL expired)
             cursor.execute('''
                 UPDATE working_memory
                 SET memory_state = 'dormant',
@@ -274,7 +281,7 @@ class WorkingMemory:
             ''', (now,))
             active_to_dormant = cursor.rowcount
 
-            # 阶段2：dormant → forgotten（休眠 7 天）
+            # Stage 2: dormant → forgotten (7 days of dormancy)
             cursor.execute('''
                 UPDATE working_memory
                 SET memory_state = 'forgotten',
@@ -294,7 +301,7 @@ class WorkingMemory:
             self.close()
 
     def get_active_entries(self, limit=100):
-        """只获取 active 状态的工作记忆（排除 dormant/forgotten）"""
+        """Get only active state working memory entries (exclude dormant/forgotten)"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
@@ -309,7 +316,7 @@ class WorkingMemory:
             self.close()
 
     def recover_dormant(self, entry_id):
-        """从 dormant/forgotten 状态恢复为 active（模拟记忆唤醒）"""
+        """Recover from dormant/forgotten state to active (simulating memory recall)"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
@@ -329,7 +336,7 @@ class WorkingMemory:
             self.close()
 
     def purge_forgotten(self, days=30):
-        """硬删除 forgotten 超过指定天数的条目（需手动调用，不可逆）"""
+        """Hard delete forgotten entries older than specified days (manual call required, irreversible)"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
@@ -345,51 +352,51 @@ class WorkingMemory:
             return deleted
         finally:
             self.close()
-    
+
     def get_all(self, limit=100):
-        """获取所有工作记忆条目"""
+        """Get all working memory entries"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
-            
+
             cursor.execute('''
-            SELECT * FROM working_memory 
-            ORDER BY timestamp DESC 
+            SELECT * FROM working_memory
+            ORDER BY timestamp DESC
             LIMIT ?
             ''', (limit,))
-            
+
             entries = [dict(row) for row in cursor.fetchall()]
             return entries
         finally:
             self.close()
-    
+
     def get_by_id(self, entry_id):
-        """根据ID获取工作记忆条目"""
+        """Get working memory entry by ID"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
-            
+
             cursor.execute('''
-            SELECT * FROM working_memory 
+            SELECT * FROM working_memory
             WHERE id = ?
             ''', (entry_id,))
-            
+
             row = cursor.fetchone()
             return dict(row) if row else None
         finally:
             self.close()
-    
+
     def delete(self, entry_id):
-        """删除工作记忆条目"""
+        """Delete working memory entry"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
-            
+
             cursor.execute('''
-            DELETE FROM working_memory 
+            DELETE FROM working_memory
             WHERE id = ?
             ''', (entry_id,))
-            
+
             conn.commit()
             affected = cursor.rowcount
             return affected > 0

@@ -1,19 +1,19 @@
 """
-长期记忆模块（Long-Term Memory）
+Long-Term Memory Module
 
-分布式长期存储，支持语义化整合。
+Distributed long-term storage with semantic integration.
 
-P1 升级：
-- 检索方法升级：综合得分（语义相似度 × 权重 × 时效性）
-- 语义相似度：基于 TF-IDF 的余弦相似度（替代纯 LIKE 查询）
-- 权重公式：与设计文档对齐（base + frequency + emotion + link）× time_decay
-- 遗忘机制：幂律衰减 + dormant/deleted 状态
+P1 Upgrade:
+- Retrieval method upgrade: Composite score (semantic similarity × weight × recency)
+- Semantic similarity: TF-IDF based cosine similarity (replaces pure LIKE queries)
+- Weight formula: aligned with design document (base + frequency + emotion + link) × time_decay
+- Forgetting mechanism: Power-law decay + dormant/deleted states
 
-P2 升级（2026-04-08）：
-- 事实锚点防幻觉：raw_anchors 字段存储关键事实（代码/配置/数字）
-- 在生成式回忆时校验事实，防止大模型幻觉
+P2 Upgrade (2026-04-08):
+- Fact anchors for hallucination prevention: raw_anchors field stores key facts (code/config/numbers)
+- Verify facts during generative recall to prevent LLM hallucinations
 
-设计还原：NOESIS设计文档 3.5 节
+Design reference: NOESIS Design Document Section 3.5
 """
 
 import sqlite3
@@ -26,30 +26,36 @@ from typing import List, Dict, Optional
 
 
 class LongTermMemory:
+    """
+    Long-Term Memory Module
+    Provides distributed long-term storage with semantic integration.
+    Supports weighted retrieval, forgetting mechanism, and fact anchoring.
+    """
+
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.conn = None
         self.decay_rate = 0.05
 
-        # 权重公式参数（与设计文档 4.3 节对齐）
+        # Weight formula parameters (aligned with design document Section 4.3)
         self.base_weight = 0.5
         self.frequency_factor = 0.1
         self.emotion_factor = 0.3
         self.link_factor = 0.2
 
-        # 遗忘阈值
+        # Forgetting thresholds
         self.dormant_threshold = 0.2
         self.delete_threshold = 0.1
 
-        # TF-IDF 缓存（避免重复计算）
+        # TF-IDF cache (avoid redundant computation)
         self._idf_cache: Dict[str, float] = {}
         self._idf_dirty = True
-        
-        # P2：事实锚点（防幻觉）
+
+        # P2: Fact anchors (hallucination prevention)
         self._ensure_raw_anchors_column()
 
     def _ensure_raw_anchors_column(self):
-        """P2：确保 raw_anchors 字段存在"""
+        """P2: Ensure raw_anchors column exists"""
         if not self.db_path or not os.path.exists(self.db_path):
             return
         try:
@@ -66,7 +72,7 @@ class LongTermMemory:
             print(f"[LTM] raw_anchors column check failed: {e}")
 
     def connect(self):
-        """连接到数据库"""
+        """Connect to the SQLite database"""
         dir_name = os.path.dirname(self.db_path)
         if dir_name and not os.path.exists(dir_name):
             os.makedirs(dir_name, exist_ok=True)
@@ -75,17 +81,17 @@ class LongTermMemory:
         return self.conn
 
     def close(self):
-        """关闭数据库连接"""
+        """Close database connection"""
         if self.conn:
             self.conn.close()
 
     def create_node(self, content: str, node_type: str = None,
                    weight: float = 1.0, raw_anchors: str = None) -> int:
         """
-        创建长期记忆节点
-        
-        P2 新增：raw_anchors 参数用于存储不可压缩的关键事实
-        （如代码片段、配置参数、精确数字等），在生成式回忆时校验
+        Create a long-term memory node
+
+        P2 New: raw_anchors parameter stores incompressible key facts
+        (e.g., code snippets, config parameters, precise numbers) for verification during generative recall
         """
         conn = self.connect()
         try:
@@ -105,13 +111,14 @@ class LongTermMemory:
 
     def create_link(self, source_node_id: int, target_node_id: int,
                    strength: float = 0.5, relation_type: str = 'related') -> bool:
-        """创建节点间关联
-        
+        """
+        Create association between nodes
+
         Args:
-            source_node_id: 源节点 ID
-            target_node_id: 目标节点 ID
-            strength: 关联强度 [0, 1]
-            relation_type: 关系类型（causal/associated/similar/contrast/temporal/related）
+            source_node_id: Source node ID
+            target_node_id: Target node ID
+            strength: Association strength [0, 1]
+            relation_type: Relationship type (causal/associated/similar/contrast/temporal/related)
         """
         conn = self.connect()
         try:
@@ -141,12 +148,12 @@ class LongTermMemory:
 
     def retrieve(self, query: str, top_k: int = 10, threshold: float = 0.0) -> List[Dict]:
         """
-        检索记忆节点
+        Retrieve memory nodes
 
-        P1 升级：综合得分 = 语义相似度 × 权重 × 时效性
-        替代原来的纯 LIKE 查询。
+        P1 Upgrade: Composite score = semantic similarity × weight × recency
+        Replaces original pure LIKE queries.
         """
-        # 获取所有活跃节点
+        # Get all active nodes
         conn = self.connect()
         try:
             cursor = conn.cursor()
@@ -163,7 +170,7 @@ class LongTermMemory:
             if not nodes:
                 return []
 
-            # 计算每个节点的综合得分
+            # Calculate composite score for each node
             scored_nodes = []
             for node in nodes:
                 score = self._calculate_retrieval_score(node, query)
@@ -171,11 +178,11 @@ class LongTermMemory:
                     node['retrieval_score'] = score
                     scored_nodes.append(node)
 
-            # 按得分排序
+            # Sort by score
             scored_nodes.sort(key=lambda x: x['retrieval_score'], reverse=True)
             top_nodes = scored_nodes[:top_k]
 
-            # 获取关联
+            # Get associations
             for node in top_nodes:
                 node['links'] = self._get_node_links(node['id'])
 
@@ -185,17 +192,17 @@ class LongTermMemory:
 
     def _calculate_retrieval_score(self, node: Dict, query: str) -> float:
         """
-        计算检索得分
+        Calculate retrieval score
 
         score = semantic_similarity × weight × recency_boost
         """
-        # 语义相似度
+        # Semantic similarity
         semantic_sim = self._semantic_similarity(node.get('content', ''), query)
 
-        # 权重（已包含遗忘衰减）
+        # Weight (includes forgetting decay)
         weight = node.get('weight', 0.5)
 
-        # 时效性提升
+        # Recency boost
         recency_boost = 1.0
         last_accessed = node.get('last_accessed', '')
         if last_accessed:
@@ -210,36 +217,36 @@ class LongTermMemory:
 
     def _semantic_similarity(self, text_a: str, text_b: str) -> float:
         """
-        语义相似度计算（TF-IDF + 余弦相似度）
+        Semantic similarity calculation (TF-IDF + Cosine similarity)
 
-        不依赖外部 embedding 模型，使用轻量级 TF-IDF 方法。
+        Does not rely on external embedding models, uses lightweight TF-IDF method.
         """
-        # 分词
+        # Tokenize
         words_a = self._tokenize(text_a)
         words_b = self._tokenize(text_b)
 
         if not words_a or not words_b:
             return 0.0
 
-        # 计算词频
+        # Calculate term frequency
         tf_a = Counter(words_a)
         tf_b = Counter(words_b)
 
-        # 所有词汇
+        # All vocabulary
         all_vocab = set(words_a) | set(words_b)
         if not all_vocab:
             return 0.0
 
-        # 简化 IDF（使用固定公式，不依赖全局语料库）
-        # IDF(w) = log(N / (1 + df(w)))，这里 N 取 100 作为近似
+        # Simplified IDF (uses fixed formula, not dependent on global corpus)
+        # IDF(w) = log(N / (1 + df(w))), here N = 100 as approximation
         def idf(word):
-            # 基于实际文档频率的IDF
+            # IDF based on actual document frequency
             df = sum(1 for w in [words_a, words_b] if word in w)
             if df == 0:
                 df = 1
             return math.log(2.0 / (1 + df))  # 2 documents
 
-        # 计算余弦相似度
+        # Calculate cosine similarity
         dot_product = sum(tf_a[w] * tf_b[w] for w in all_vocab)
 
         norm_a = math.sqrt(sum(v ** 2 for v in tf_a.values()))
@@ -250,26 +257,26 @@ class LongTermMemory:
 
         cosine = dot_product / (norm_a * norm_b)
 
-        # 混合精确匹配得分（如果 query 的任何部分完全出现在 text 中，加分）
+        # Hybrid exact match bonus (if any part of query exactly appears in text, add bonus)
         exact_bonus = 0.0
         if text_b and len(text_b) <= 100:
-            # 对短查询，检查是否是子串匹配
+            # For short queries, check substring match
             if text_b.lower() in text_a.lower():
                 exact_bonus = 0.3
 
         return min(1.0, cosine + exact_bonus)
 
     def _tokenize(self, text: str) -> List[str]:
-        """分词：支持中文和英文"""
+        """Tokenize: support Chinese and English"""
         if not text:
             return []
 
-        # 提取中文词（2字以上，不限制上限）
+        # Extract Chinese words (2+ characters, no upper limit)
         chinese_words = re.findall(r'[\u4e00-\u9fff]{2,}', text)
-        # 提取英文词
+        # Extract English words
         english_words = re.findall(r'[a-zA-Z]{3,}', text.lower())
 
-        # 过滤停用词
+        # Filter stopwords
         stopwords = {
             '的', '了', '是', '在', '和', '有', '不', '这', '我', '他',
             '她', '它', '们', '着', '过', '把', '被', '让', '给', '到',
@@ -283,9 +290,9 @@ class LongTermMemory:
 
     def access_node(self, node_id: int) -> bool:
         """
-        访问节点，更新权重
+        Access node and update weight
 
-        记忆提取强化记忆痕迹（与设计文档一致）
+        Memory extraction strengthens memory traces (consistent with design document)
         """
         conn = self.connect()
         try:
@@ -306,18 +313,18 @@ class LongTermMemory:
 
     def apply_forgetting(self) -> int:
         """
-        应用遗忘机制
+        Apply forgetting mechanism
 
-        P1 升级：幂律衰减（更符合人类记忆）
-        - weight < 0.2 → dormant（休眠，可恢复）
-        - weight < 0.1 → deleted（删除）
-        - 跳过核心/系统/配置类型节点
+        P1 Upgrade: Power-law decay (more aligned with human memory)
+        - weight < 0.2 → dormant (can be recovered)
+        - weight < 0.1 → deleted
+        - Skip core/system/config type nodes
         """
         conn = self.connect()
         try:
             cursor = conn.cursor()
 
-            # 获取所有节点（限制数量避免内存溢出）
+            # Get all nodes (limit to avoid memory overflow)
             cursor.execute('SELECT * FROM ltm_nodes ORDER BY created_at ASC LIMIT 10000')
             nodes = cursor.fetchall()
 
@@ -327,13 +334,13 @@ class LongTermMemory:
             for node in nodes:
                 node_dict = dict(node)
 
-                # 系统节点不遗忘
+                # System nodes are not forgotten
                 if node_dict.get('type') in ('core', 'system', 'config'):
                     continue
 
                 weight = node_dict.get('weight', 0.5)
 
-                # 幂律遗忘：基于创建以来的绝对天数，而非每日累乘
+                # Power-law forgetting: based on absolute days since creation, not daily accumulation
                 created_at = node_dict.get('created_at', '')
                 last_accessed = node_dict.get('last_accessed', created_at)
 
@@ -346,14 +353,14 @@ class LongTermMemory:
                     days_since = 0
 
                 if days_since > 0:
-                    # 真正的幂律衰减：retention = days^(-exponent)
-                    # 不再累乘，直接基于绝对天数计算
-                    decay_constant = 1.5  # 衰减指数
+                    # True power-law decay: retention = days^(-exponent)
+                    # Not cumulative multiplication, calculate based on absolute days
+                    decay_constant = 1.5  # Decay exponent
                     retention = max(0.01, days_since ** (-decay_constant))
-                    # 原始权重乘以保留率（上限为原始权重）
+                    # Original weight multiplied by retention rate (capped at original weight)
                     new_weight = weight * retention
 
-                    # 更新权重
+                    # Update weight
                     cursor.execute('''
                     UPDATE ltm_nodes SET weight = ? WHERE id = ?
                     ''', (new_weight, node_dict['id']))
@@ -374,7 +381,7 @@ class LongTermMemory:
         return dormant_count + deleted_count
 
     def _get_node_links(self, node_id: int) -> Dict:
-        """获取节点的关联"""
+        """Get node associations"""
         try:
             cursor = self.connect()
             try:
@@ -404,7 +411,7 @@ class LongTermMemory:
             return {'outgoing': [], 'incoming': []}
 
     def get_node(self, node_id: int) -> Optional[Dict]:
-        """根据ID获取节点"""
+        """Get node by ID"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
@@ -426,9 +433,9 @@ class LongTermMemory:
                    node_type: str = None, weight: float = None,
                    raw_anchors: str = None) -> bool:
         """
-        更新节点
-        
-        P2 新增：raw_anchors 参数用于更新关键事实锚点
+        Update node
+
+        P2 New: raw_anchors parameter updates key fact anchors
         """
         conn = self.connect()
         try:
@@ -461,21 +468,21 @@ class LongTermMemory:
             return affected > 0
         finally:
             self.close()
-    
+
     def update_raw_anchors(self, node_id: int, raw_anchors: str) -> bool:
         """
-        P2：更新节点的事实锚点
-        
-        用于在后续分析中发现新事实时，更新已存在节点的事实锚点
+        P2: Update node's fact anchors
+
+        Used to update existing nodes' fact anchors when new facts are discovered during analysis
         """
         return self.update_node(node_id, raw_anchors=raw_anchors)
-    
+
     def get_raw_anchors(self, node_id: int) -> Optional[str]:
         """
-        P2：获取节点的事实锚点
-        
+        P2: Get node's fact anchors
+
         Returns:
-            JSON 格式的事实锚点字符串，或 None
+            JSON formatted fact anchor string, or None
         """
         conn = self.connect()
         try:
@@ -485,21 +492,21 @@ class LongTermMemory:
             return row['raw_anchors'] if row else None
         finally:
             self.close()
-    
-    def retrieve_with_anchors(self, query: str, top_k: int = 10, 
+
+    def retrieve_with_anchors(self, query: str, top_k: int = 10,
                               threshold: float = 0.0) -> List[Dict]:
         """
-        P2：带事实锚点的检索
-        
-        在普通检索基础上，返回每个节点的事实锚点，
-        供调用方在生成时校验事实
+        P2: Retrieval with fact anchors
+
+        On top of normal retrieval, returns fact anchors for each node
+        for caller to verify facts during generation
         """
         results = self.retrieve(query, top_k, threshold)
-        
+
         if not results:
             return results
-        
-        # 批量获取 raw_anchors，避免 N+1 查询
+
+        # Batch fetch raw_anchors to avoid N+1 queries
         try:
             conn = self.connect()
             try:
@@ -511,18 +518,18 @@ class LongTermMemory:
                     node_ids
                 )
                 anchor_map = {row[0]: row[1] for row in cursor.fetchall()}
-                
+
                 for node in results:
                     node['raw_anchors'] = anchor_map.get(node['id'])
             finally:
                 self.close()
         except Exception:
             pass
-        
+
         return results
 
     def delete_node(self, node_id: int) -> bool:
-        """删除节点"""
+        """Delete node"""
         conn = self.connect()
         try:
             cursor = conn.cursor()
@@ -542,7 +549,7 @@ class LongTermMemory:
             self.close()
 
     def get_all_nodes(self, limit: int = 100) -> List[Dict]:
-        """获取所有节点"""
+        """Get all nodes"""
         conn = self.connect()
         try:
             cursor = conn.cursor()

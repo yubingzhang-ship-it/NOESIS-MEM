@@ -66,9 +66,6 @@ openai>=1.0.0
 ### Installation
 
 ```bash
-# Navigate to project directory
-cd noesis_ii
-
 # Install dependencies
 pip install -r requirements.txt
 ```

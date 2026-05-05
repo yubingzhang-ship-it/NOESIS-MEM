@@ -1,0 +1,33 @@
+# NOESIS-II 依赖项
+
+# 核心依赖
+numpy>=1.24.0
+PyYAML>=6.0
+
+# LLM 接口依赖
+openai>=1.0.0
+ollama>=0.1.0
+python-dotenv>=1.0.0
+
+# 数据库依赖
+sqlalchemy>=2.0.0
+
+# 数据处理依赖
+pandas>=2.0.0
+scikit-learn>=1.3.0
+requests>=2.31.0
+
+# 向量模型依赖
+sentence-transformers>=2.2.0
+
+# 输入系统依赖
+feedparser>=6.0.10
+beautifulsoup4>=4.12.3
+
+# 调度和GUI依赖
+schedule>=1.2.0
+gradio>=4.0.0
+
+# 测试依赖
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
