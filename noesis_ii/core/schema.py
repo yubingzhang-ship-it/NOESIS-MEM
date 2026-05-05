@@ -1,14 +1,42 @@
+"""
+Database Schema Module
+
+Handles database initialization, table creation, and migration for NOESIS-II memory system.
+
+Database Tables:
+- working_memory: Short-term memory storage with TTL and soft-delete
+- ltm_nodes: Long-term memory nodes with semantic content
+- ltm_links: Associations between long-term memory nodes
+- persona_profiles: Personality profiles (OCEAN model)
+- memory_traces: Memory traces (replaces alaya_seeds)
+- activity_events: Activity logging
+- hgm_state: Hierarchical Generative Model state
+- action_queue: Delayed action scheduling
+- extended_resources: Extended mind external resources
+- trace_links: Associations between memory traces
+
+Migration History:
+- Route A: Replace alaya_seeds with memory_traces, remove Buddhist terminology
+- Add soft-delete fields (memory_state, dormant_since)
+- Add emotion_data fields for narrative reconstruction
+"""
+
 import sqlite3
 import os
 
 
 class Schema:
+    """
+    Database Schema Manager
+    Handles database initialization, table creation, and data migration.
+    """
+
     def __init__(self, db_path):
         self.db_path = db_path
         self.conn = None
 
     def connect(self):
-        """连接到数据库"""
+        """Connect to SQLite database"""
         dir_name = os.path.dirname(self.db_path)
         if dir_name and not os.path.exists(dir_name):
             os.makedirs(dir_name, exist_ok=True)
@@ -17,18 +45,18 @@ class Schema:
         return self.conn
 
     def close(self):
-        """关闭数据库连接"""
+        """Close database connection"""
         if self.conn:
             self.conn.close()
 
     def create_tables(self):
-        """创建所有数据表"""
+        """Create all database tables"""
         conn = self.connect()
         cursor = conn.cursor()
 
-        # 工作记忆表
-        # memory_state: active → dormant → forgotten（软删除替代硬删除）
-        # emotion_data: 结构化情绪向量 JSON {valence, arousal, dominant, tags}
+        # Working Memory Table
+        # memory_state: active → dormant → forgotten (soft delete instead of hard delete)
+        # emotion_data: Structured emotion vector JSON {valence, arousal, dominant, tags}
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS working_memory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +71,7 @@ class Schema:
         )
         ''')
 
-        # 长期记忆节点表
+        # Long-term Memory Nodes Table
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS ltm_nodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,8 +83,8 @@ class Schema:
         )
         ''')
 
-        # 长期记忆关联表
-        # relation_type: 关系类型（causal/associated/similar/contrast/temporal/related）
+        # Long-term Memory Links Table
+        # relation_type: Relationship type (causal/associated/similar/contrast/temporal/related)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS ltm_links (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +98,7 @@ class Schema:
         )
         ''')
 
-        # 人格画像表（替代原 deep_personality）
+        # Persona Profiles Table (replaces deep_personality)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS persona_profiles (
             id TEXT PRIMARY KEY,
@@ -86,9 +114,9 @@ class Schema:
         )
         ''')
 
-        # 记忆痕迹表（替代原 alaya_seeds，路线A重构）
-        # memory_state: active(正常) → dormant(休眠，低权重不检索但保留) → forgotten(遗忘，可恢复)
-        # emotion_data: 结构化情绪向量 JSON {valence, arousal, dominant, tags, narrative_hook}
+        # Memory Traces Table (replaces alaya_seeds, Route A refactor)
+        # memory_state: active(normal) → dormant(inactive but retained) → forgotten(can be recovered)
+        # emotion_data: Structured emotion vector JSON {valence, arousal, dominant, tags, narrative_hook}
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS memory_traces (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,7 +139,7 @@ class Schema:
         )
         ''')
 
-        # 活动事件日志表（替代原 conscious_events）
+        # Activity Events Log Table (replaces conscious_events)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS activity_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,7 +149,7 @@ class Schema:
         )
         ''')
 
-        # HGM 状态表
+        # HGM State Table
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS hgm_state (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -142,7 +170,7 @@ class Schema:
         )
         ''')
 
-        # 动作队列表（延迟动作调度）
+        # Action Queue Table (delayed action scheduling)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS action_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -154,7 +182,7 @@ class Schema:
         )
         ''')
 
-        # P1 新增：延展心智外部资源表
+        # P1 New: Extended Mind External Resources Table
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS extended_resources (
             resource_id TEXT PRIMARY KEY,
@@ -171,13 +199,13 @@ class Schema:
         )
         ''')
 
-        # 记忆痕迹关联表（替代原 seed_links）
+        # Memory Trace Links Table (replaces seed_links)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS trace_links (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             source_trace_id INTEGER NOT NULL REFERENCES memory_traces(id),
             target_trace_id INTEGER NOT NULL REFERENCES memory_traces(id),
-            relation_type TEXT NOT NULL DEFAULT \'related\',
+            relation_type TEXT NOT NULL DEFAULT 'related',
             strength REAL NOT NULL DEFAULT 0.5,
             context TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -189,8 +217,8 @@ class Schema:
         self.close()
 
     def _get_table_columns(self, conn, table_name):
-        """获取表的列名列表"""
-        # 防止SQL注入：只允许字母、数字、下划线
+        """Get column names for a table"""
+        # Prevent SQL injection: only allow letters, numbers, underscore
         import re
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
             raise ValueError(f"Invalid table name: {table_name}")
@@ -198,23 +226,20 @@ class Schema:
         return [row[1] for row in cursor]
 
     def _migrate_alaya_seeds(self, conn):
-        """迁移旧 alaya_seeds 表到新 memory_traces 结构（路线A）"""
-        # 检查旧表是否存在
+        """Migrate old alaya_seeds table to new memory_traces structure (Route A)"""
         old_columns = []
         try:
             old_columns = self._get_table_columns(conn, 'alaya_seeds')
         except Exception:
-            pass  # 旧表不存在，无需迁移
+            pass  # Old table doesn't exist, no migration needed
 
         if not old_columns:
-            return  # 没有旧数据
+            return  # No legacy data
 
-        # 检查新表是否已有数据
         new_columns = self._get_table_columns(conn, 'memory_traces')
 
-        # 备份旧数据
+        # Backup old data
         try:
-            # 过滤非法列名
             import re
             safe_columns = [c for c in old_columns if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', c)]
             if not safe_columns:
@@ -224,7 +249,7 @@ class Schema:
         except Exception:
             pass
 
-        # 迁移到新表结构
+        # Migrate to new structure
         try:
             conn.execute('''
             INSERT OR IGNORE INTO memory_traces (
@@ -250,14 +275,14 @@ class Schema:
         except Exception as e:
             print(f"[MIGRATE] Warning: {e}")
 
-        # 清理（不删除旧表，以防回滚）
+        # Cleanup (don't delete old table in case of rollback)
         try:
             conn.execute('DROP TABLE IF EXISTS _legacy_seeds_backup')
         except Exception:
             pass
 
     def _migrate_deep_personality(self, conn):
-        """迁移旧 deep_personality 表到新 persona_profiles 结构（路线A）"""
+        """Migrate old deep_personality table to new persona_profiles structure (Route A)"""
         old_columns = []
         try:
             old_columns = self._get_table_columns(conn, 'deep_personality')
@@ -268,7 +293,6 @@ class Schema:
             return
 
         try:
-            # 过滤非法列名
             import re
             safe_columns = [c for c in old_columns if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', c)]
             if not safe_columns:
@@ -307,17 +331,17 @@ class Schema:
             pass
 
     def _migrate_vipaka_queue(self, conn):
-        """迁移旧 vipaka_queue 表名到 action_queue（路线A术语清理）"""
+        """Rename old vipaka_queue table to action_queue (Route A terminology cleanup)"""
         try:
             old_columns = self._get_table_columns(conn, 'vipaka_queue')
             if old_columns:
                 conn.execute('ALTER TABLE vipaka_queue RENAME TO action_queue')
                 print("[MIGRATE] vipaka_queue -> action_queue: table renamed")
         except Exception:
-            pass  # 不存在或已迁移
+            pass  # Doesn't exist or already migrated
 
     def init_db(self):
-        """初始化数据库（含自动迁移）"""
+        """Initialize database (includes automatic migration)"""
         conn = self.connect()
         self._migrate_alaya_seeds(conn)
         self._migrate_deep_personality(conn)
@@ -326,13 +350,13 @@ class Schema:
         self.create_tables()
 
     def migrate(self):
-        """数据库迁移"""
+        """Execute database migrations"""
         self.init_db()
         self._migrate_soft_forget()
         self._migrate_relation_type()
 
     def _migrate_relation_type(self):
-        """为 ltm_links 添加 relation_type 字段（改进2：图关联增强）"""
+        """Add relation_type column to ltm_links (Improvement 2: Graph Association Enhancement)"""
         conn = self.connect()
         try:
             cols = self._get_table_columns(conn, 'ltm_links')
@@ -346,11 +370,11 @@ class Schema:
             self.close()
 
     def _migrate_soft_forget(self):
-        """为现有表添加软删除遗忘字段（memory_state, dormant_since）"""
+        """Add soft-delete forget fields (memory_state, dormant_since) to existing tables"""
         conn = self.connect()
         cursor = conn.cursor()
         try:
-            # memory_traces: 添加 memory_state 和 dormant_since
+            # memory_traces: Add memory_state and dormant_since
             cols = self._get_table_columns(conn, 'memory_traces')
             if 'memory_state' not in cols:
                 cursor.execute("ALTER TABLE memory_traces ADD COLUMN memory_state TEXT DEFAULT 'active'")
@@ -359,7 +383,7 @@ class Schema:
                 cursor.execute("ALTER TABLE memory_traces ADD COLUMN dormant_since REAL DEFAULT 0.0")
                 print("[MIGRATE] memory_traces: added dormant_since column")
 
-            # working_memory: 添加 memory_state 和 dormant_since
+            # working_memory: Add memory_state and dormant_since
             cols = self._get_table_columns(conn, 'working_memory')
             if 'memory_state' not in cols:
                 cursor.execute("ALTER TABLE working_memory ADD COLUMN memory_state TEXT DEFAULT 'active'")
@@ -371,7 +395,7 @@ class Schema:
                 cursor.execute("ALTER TABLE working_memory ADD COLUMN emotion_data TEXT DEFAULT '{}'")
                 print("[MIGRATE] working_memory: added emotion_data column")
 
-            # memory_traces: 添加 emotion_data
+            # memory_traces: Add emotion_data
             cols = self._get_table_columns(conn, 'memory_traces')
             if 'emotion_data' not in cols:
                 cursor.execute("ALTER TABLE memory_traces ADD COLUMN emotion_data TEXT DEFAULT '{}'")
