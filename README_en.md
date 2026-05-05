@@ -44,6 +44,24 @@ The system employs a three-layer memory architecture:
 
 - Python 3.10+
 - Windows / Linux / macOS
+- LLM API access or local Ollama installation
+
+### Dependencies (requirements.txt)
+
+```
+python-dotenv>=1.0.0
+PyYAML>=6.0
+schedule>=1.2.0
+sqlalchemy>=2.0.0
+requests>=2.31.0
+sentence-transformers>=2.2.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+gradio>=4.0.0
+ollama>=0.1.0
+openai>=1.0.0
+```
 
 ### Installation
 
@@ -130,7 +148,7 @@ circadian_rhythm:
   evening: '22:00'
   morning: '06:00'
 
-# LLM configuration
+# LLM configuration - OpenAI Compatible API
 llm:
   provider: openai_compatible
   api_base: https://api.longcat.chat/openai/v1
@@ -146,6 +164,71 @@ storage:
 retrieval:
   threshold: 0.5
   top_k: 10
+```
+
+### LLM Configuration Options
+
+#### Option 1: OpenAI Compatible API
+
+```yaml
+llm:
+  provider: openai_compatible
+  api_base: https://api.your-llm-provider.com/v1
+  api_key: ${YOUR_API_KEY}
+  model: your-model-name
+```
+
+**Environment Variable Setup:**
+```bash
+# Linux/Mac
+export YOUR_API_KEY="your-api-key-here"
+
+# Windows (PowerShell)
+$env:YOUR_API_KEY="your-api-key-here"
+```
+
+#### Option 2: Local Ollama (Recommended for Privacy)
+
+```yaml
+llm:
+  provider: ollama
+  model: llama3
+  base_url: http://localhost:11434
+```
+
+**Ollama Installation:**
+
+1. **Install Ollama:**
+   ```bash
+   # Linux/Mac
+   curl -fsSL https://ollama.com/install.sh | sh
+   
+   # Windows
+   # Download from https://ollama.com/download
+   ```
+
+2. **Pull a model:**
+   ```bash
+   # Pull a model (e.g., Llama 3)
+   ollama pull llama3
+   
+   # Or use other models
+   ollama pull mistral
+   ollama pull phi3
+   ```
+
+3. **Start Ollama service:**
+   ```bash
+   ollama serve
+   ```
+
+#### Option 3: OpenAI Official API
+
+```yaml
+llm:
+  provider: openai
+  api_key: ${OPENAI_API_KEY}
+  model: gpt-4o-mini
 ```
 
 ---
