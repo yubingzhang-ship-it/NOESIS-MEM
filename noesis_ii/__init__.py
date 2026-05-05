@@ -1,0 +1,1 @@
+"""NOESIS-II: A personality-consistent memory system for AI agents.\n\n__version__ = "0.1.0"\n__author__ = "Yubing Zhang"""
